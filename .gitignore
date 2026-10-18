@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+.env
+.env.local
+# Local-only: design reference photos, backups, the local-network QR image, editor/agent folders
+refrence/
+*.backup.*
+nc3-expo-qr.png
+.claude/
