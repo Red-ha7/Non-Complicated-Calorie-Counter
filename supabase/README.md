@@ -8,8 +8,13 @@ Project: `NC3` (`trqewxyytjazlkkdvjeh`, ap-northeast-1).
   2. `row_level_security` – RLS + per-user policies on every table
   3. `totals_and_insights` – `daily_totals` view, `insights_overview()`, `current_streak()`
   4. `rate_limits` – per-user limiter used by the Edge Functions
+  5. `foods` – the food database (`public.foods`, read-only for signed-in users) and `search_foods()`
+  6. `foods_search_ranking` – ranking tweaks for `search_foods()` (generic and cooked foods first)
 - `functions/` – Edge Functions (all require a signed-in user's JWT)
-  - `estimate-snack` – calories/macros from a photo or description (Claude)
+  - `estimate-snack` – calories/macros from a photo or description (Gemini or Claude). The model
+    lists each item with a weight; each item is then looked up in the verified food database and
+    its calories are computed from real per-100 g values. Items without a confident match keep the
+    model's own numbers, and the response says how many items were matched (`basis`).
   - `barcode-lookup` – Open Food Facts lookup by barcode
   - `delete-account` – deletes the caller's account and, by cascade, all their rows
 
@@ -33,3 +38,21 @@ Project: `NC3` (`trqewxyytjazlkkdvjeh`, ap-northeast-1).
 ## Frontend env
 Copy `.env.example` to `.env`. Only the project URL and the **publishable** key belong there.
 Never put a service-role key or the Anthropic key in a `VITE_` variable.
+
+## Food database
+`public.foods` holds nutrition per 100 g (calories, macros, fibre, sugar, fat types, cholesterol,
+sodium, potassium, calcium, iron, vitamins C and A), portion weights, allergens and dietary tags.
+Anything a source does not report is `NULL`; nothing is guessed.
+
+| Source | Rows | `review_status` | Notes |
+|---|---|---|---|
+| USDA FoodData Central: SR Legacy (2018-04) and Foundation Foods (2025-12) | ~8,000 | `verified` | Public domain. Built by `scripts/build-foods-from-usda.mjs`. |
+| Regional foods (Saudi, Gulf, Levantine, Egyptian) | 47 | `ai_generated` | Approximate values from typical recipes. Built by `scripts/build-foods-regional.mjs`. Shown as "estimated, unverified" and **never** used to override the AI estimate. Replace with measured values and set `verified` when you have a source. |
+
+Rebuild and load (download the two USDA CSV zips from https://fdc.nal.usda.gov/download-datasets/ first):
+
+```bash
+node scripts/build-foods-from-usda.mjs <sr_legacy_dir> <foundation_dir> out/usda
+node scripts/build-foods-regional.mjs out/regional
+for f in out/usda/*.sql out/regional/*.sql; do supabase db query --linked --file "$f"; done
+```

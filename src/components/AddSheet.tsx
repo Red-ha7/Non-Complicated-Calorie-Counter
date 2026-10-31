@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Camera,
@@ -14,10 +14,10 @@ import { Scanner } from "./Scanner";
 import { SnackForm, type SnackDraft } from "./SnackForm";
 import { ideas } from "../data";
 import { useStore } from "../store";
-import { estimateSnack, lookupBarcode, prepareImage, type Estimate } from "../lib/api";
+import { estimateSnack, lookupBarcode, prepareImage, searchFoods, type Estimate, type FoodRow } from "../lib/api";
 import type { SnackSource } from "../types";
 
-type Step = "home" | "manual" | "search" | "suggest" | "barcode";
+type Step = "home" | "manual" | "search" | "suggest" | "barcode" | "food";
 
 const reason = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong.");
 
@@ -40,6 +40,10 @@ export function AddSheet({
   const [source, setSource] = useState<SnackSource>("manual");
   const [estimating, setEstimating] = useState(false);
   const [scanKey, setScanKey] = useState(0);
+  const [foods, setFoods] = useState<FoodRow[]>([]);
+  const [foodsBusy, setFoodsBusy] = useState(false);
+  const [picked, setPicked] = useState<FoodRow | null>(null);
+  const [grams, setGrams] = useState("100");
   const camera = useRef<HTMLInputElement>(null);
   const album = useRef<HTMLInputElement>(null);
 
@@ -129,7 +133,40 @@ export function AddSheet({
     return [...pool].sort((a, b) => b.calories - a.calories).slice(0, 3);
   }, [remaining]);
 
+  // Search the food database as the person types (debounced).
+  useEffect(() => {
+    const term = query.trim();
+    if (step !== "search" || term.length < 2) {
+      setFoods([]);
+      return;
+    }
+    let cancelled = false;
+    setFoodsBusy(true);
+    const t = window.setTimeout(() => {
+      searchFoods(term)
+        .then((rows) => !cancelled && setFoods(rows))
+        .catch(() => !cancelled && setFoods([]))
+        .finally(() => !cancelled && setFoodsBusy(false));
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [query, step]);
+
+  const chooseFood = (f: FoodRow) => {
+    setPicked(f);
+    // Start from the most natural single portion (a medium banana, a slice, a serving) rather than "1 cup mashed".
+    const natural = f.portions.find((p) => /\b(medium|serving|slice|piece|each|bar|cookie|egg)\b/i.test(p.description));
+    setGrams(String((natural ?? f.portions[0])?.grams ?? 100));
+    setStep("food");
+  };
+
+  const g = Math.max(0, Math.min(5000, parseFloat(grams) || 0));
+  const per = (v: number | null | undefined) => Math.round(((v ?? 0) * g) / 100);
+
   const titles: Record<Step, string> = {
+    food: "How much did you have?",
     home: "Add to your ritual.",
     manual: "Add it yourself.",
     search: "Find a snack.",
@@ -140,7 +177,7 @@ export function AddSheet({
   return (
     <Sheet eyebrow="Log snack" title={titles[step]} onClose={onClose}>
       {step !== "home" && (
-        <button className="back-link" onClick={goHome}>
+        <button className="back-link" onClick={step === "food" ? () => setStep("search") : goHome}>
           <ArrowLeft size={18} /> Back
         </button>
       )}
@@ -307,14 +344,14 @@ export function AddSheet({
             <Search size={20} />
             <input
               className="input"
-              placeholder="Search snacks and ideas"
+              placeholder="Search snacks, ideas and foods"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               autoFocus
             />
           </div>
           <div className="list-pick">
-            {results.length === 0 && (
+            {results.length === 0 && foods.length === 0 && !foodsBusy && query.trim().length >= 2 && (
               <p className="sub" style={{ textAlign: "center", marginTop: 24 }}>
                 Nothing matches “{query}”. Try Manual instead.
               </p>
@@ -329,6 +366,98 @@ export function AddSheet({
               </button>
             ))}
           </div>
+
+          {query.trim().length >= 2 && (
+            <>
+              <p className="label" style={{ margin: "20px 0 8px" }}>
+                Food database {foodsBusy ? "· searching…" : ""}
+              </p>
+              <div className="list-pick">
+                {!foodsBusy && foods.length === 0 && (
+                  <p className="sub" style={{ textAlign: "center" }}>
+                    No foods found for “{query.trim()}”.
+                  </p>
+                )}
+                {foods.map((f) => (
+                  <button key={f.id} onClick={() => chooseFood(f)}>
+                    <span>
+                      {f.name}
+                      <small>
+                        {[f.category, f.cuisine, f.review_status === "verified" ? null : "estimated, unverified"]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </small>
+                    </span>
+                    <span className="kcal">{Math.round(f.kcal ?? 0)} kcal / 100 g</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {step === "food" && picked && (
+        <>
+          <p className="sub" style={{ marginTop: 0 }}>
+            <b>{picked.name}</b>
+            {picked.review_status !== "verified" && " (estimated values, not yet verified)"}
+          </p>
+          <div className="pills" style={{ margin: "12px 0", flexWrap: "wrap" }}>
+            {[...picked.portions.slice(0, 6), { description: "100 g", grams: 100 }].map((p) => (
+              <button
+                key={p.description}
+                type="button"
+                className={`tag-btn${parseFloat(grams) === p.grams ? " on" : ""}`}
+                onClick={() => setGrams(String(p.grams))}
+              >
+                {p.description} · {Math.round(p.grams)} g
+              </button>
+            ))}
+          </div>
+          <Field label="Amount (grams)">
+            <input
+              className="input"
+              inputMode="decimal"
+              value={grams}
+              onChange={(e) => setGrams(e.target.value.replace(/[^\d.]/g, ""))}
+              style={{ height: 58 }}
+            />
+          </Field>
+          <div className="detail-macros" style={{ marginTop: 16 }}>
+            <div>
+              <span className="label">Kcal</span>
+              <b>{per(picked.kcal)}</b>
+            </div>
+            <div>
+              <span className="label">Protein</span>
+              <b>{per(picked.protein_g)}g</b>
+            </div>
+            <div>
+              <span className="label">Carbs</span>
+              <b>{per(picked.carbs_g)}g</b>
+            </div>
+            <div>
+              <span className="label">Fats</span>
+              <b>{per(picked.fat_g)}g</b>
+            </div>
+          </div>
+          <button
+            className="btn primary"
+            style={{ marginTop: 20 }}
+            disabled={g <= 0 || per(picked.kcal) < 1}
+            onClick={() =>
+              log({
+                name: `${picked.name} (${Math.round(g)} g)`.slice(0, 80),
+                calories: Math.min(5000, per(picked.kcal)),
+                protein: per(picked.protein_g),
+                carbs: per(picked.carbs_g),
+                fat: per(picked.fat_g),
+              })
+            }
+          >
+            Log this
+          </button>
         </>
       )}
 

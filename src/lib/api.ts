@@ -67,3 +67,31 @@ export async function fetchInsights(rangeDays: number, today: string): Promise<I
     history: data.history,
   };
 }
+
+export type FoodRow = {
+  id: number;
+  food_id: string;
+  name: string;
+  food_type: string;
+  category: string | null;
+  cuisine: string | null;
+  region: string | null;
+  review_status: "ai_generated" | "needs_review" | "verified";
+  /** Per 100 g. Any of these can be null when the source did not report it. */
+  kcal: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
+  portions: { description: string; grams: number }[];
+  score: number;
+};
+
+/** Fuzzy search of the food database (see search_foods in the migrations). */
+export async function searchFoods(q: string, limit = 15): Promise<FoodRow[]> {
+  const { data, error } = await supabase.rpc("search_foods", { q, lim: limit });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as FoodRow[];
+}
