@@ -22,9 +22,12 @@ Project: `NC3` (`trqewxyytjazlkkdvjeh`, ap-northeast-1).
    - *Anonymous sign-ins*: turn **on**. Guest mode uses these.
    - *Google* and *Apple*: enable and paste the client IDs/secrets from Google Cloud / Apple
      Developer. Use the callback URL shown on each provider's page.
-3. **Edge Functions → Secrets**: add `ANTHROPIC_API_KEY`. Optional: `ESTIMATE_MODEL`
-   (defaults to `claude-haiku-5-5`, which is cheap and plenty for calorie estimates; set a larger
-   model such as `claude-opus-5-5` if you want maximum accuracy).
+3. **Edge Functions → Secrets** (AI estimates need one of these keys):
+   - `GEMINI_API_KEY` (free key from Google AI Studio; used first when present). Optional
+     `GEMINI_MODEL` (defaults to `gemini-2.5-flash-lite`). The free tier may let Google use the
+     submitted food text/photos to improve its products, and has low rate limits.
+   - `ANTHROPIC_API_KEY` (paid). Optional `ESTIMATE_MODEL` (defaults to `claude-haiku-5-5`).
+   - `ESTIMATE_PROVIDER` = `gemini` or `claude` forces one when both keys exist.
 4. **Auth → SMTP** (before launch): the built-in mailer is heavily rate-limited; add your own SMTP.
 
 ## Frontend env
