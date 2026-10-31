@@ -24,7 +24,7 @@ Project: `NC3` (`trqewxyytjazlkkdvjeh`, ap-northeast-1).
      Developer. Use the callback URL shown on each provider's page.
 3. **Edge Functions → Secrets** (AI estimates need one of these keys):
    - `GEMINI_API_KEY` (free key from Google AI Studio; used first when present). Optional
-     `GEMINI_MODEL` (defaults to `gemini-3.5-flash-lite`). The free tier may let Google use the
+     `GEMINI_MODEL` (defaults to `gemini-flash-lite-latest`, the fast tier that Google keeps pointing at the newest model). The free tier may let Google use the
      submitted food text/photos to improve its products, and has low rate limits.
    - `ANTHROPIC_API_KEY` (paid). Optional `ESTIMATE_MODEL` (defaults to `claude-haiku-5-5`).
    - `ESTIMATE_PROVIDER` = `gemini` or `claude` forces one when both keys exist.
