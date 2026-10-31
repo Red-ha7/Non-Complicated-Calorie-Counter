@@ -23,7 +23,8 @@ Project: `NC3` (`trqewxyytjazlkkdvjeh`, ap-northeast-1).
    - *Google* and *Apple*: enable and paste the client IDs/secrets from Google Cloud / Apple
      Developer. Use the callback URL shown on each provider's page.
 3. **Edge Functions → Secrets**: add `ANTHROPIC_API_KEY`. Optional: `ESTIMATE_MODEL`
-   (defaults to `claude-opus-5-5`; set `claude-haiku-4-5` for a cheaper estimator).
+   (defaults to `claude-haiku-5-5`, which is cheap and plenty for calorie estimates; set a larger
+   model such as `claude-opus-5-5` if you want maximum accuracy).
 4. **Auth → SMTP** (before launch): the built-in mailer is heavily rate-limited; add your own SMTP.
 
 ## Frontend env

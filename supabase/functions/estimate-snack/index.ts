@@ -3,7 +3,7 @@
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { allowed, getUser, json, preflight } from "./common.ts";
 
-const MODEL = Deno.env.get("ESTIMATE_MODEL") ?? "claude-opus-5-5";
+const MODEL = Deno.env.get("ESTIMATE_MODEL") ?? "claude-haiku-5-5";
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type ImageType = (typeof IMAGE_TYPES)[number];
 const MAX_IMAGE_BASE64 = 6_000_000; // ~4.5 MB of image
