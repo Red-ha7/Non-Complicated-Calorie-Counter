@@ -6,7 +6,7 @@
 // Set ESTIMATE_PROVIDER to "gemini" or "claude" to force one when both keys exist.
 import { allowed, getUser, json, preflight } from "./common.ts";
 
-const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash-lite";
+const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-3.5-flash-lite";
 const CLAUDE_MODEL = Deno.env.get("ESTIMATE_MODEL") ?? "claude-haiku-5-5";
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type ImageType = (typeof IMAGE_TYPES)[number];
