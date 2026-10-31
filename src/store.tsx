@@ -37,6 +37,8 @@ type Store = {
   signedIn: boolean;
   onboarded: boolean;
   email: string | null;
+  /** Stable id of the signed-in user (null when signed out). Use it to key per-user caches. */
+  userId: string | null;
   guest: boolean;
   signUp: (email: string, password: string) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
@@ -513,6 +515,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     signedIn: !!session,
     onboarded,
     email: session?.user.email ?? null,
+    userId,
     guest: isGuest,
     signUp,
     signIn,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Auth } from "./components/Auth";
 import { Ideas } from "./components/Ideas";
-import { Insights } from "./components/Insights";
+import { Insights, prefetchInsights } from "./components/Insights";
 import { Library } from "./components/Library";
 import { Settings } from "./components/Settings";
 import { Today } from "./components/Today";
@@ -14,6 +14,12 @@ import type { Overlay, Tab } from "./types";
 function Shell() {
   const [tab, setTab] = useState<Tab>("today");
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const { userId } = useStore();
+
+  // Load the Insights numbers in the background so that tab opens instantly.
+  useEffect(() => {
+    prefetchInsights(userId);
+  }, [userId]);
 
   // Each screen starts at the top, like a fresh page.
   useEffect(() => {

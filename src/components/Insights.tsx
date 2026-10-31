@@ -9,30 +9,48 @@ import { dayKey, fmtWeekdayShort, fromKey } from "../lib/dates";
 const RANGES = [7, 30, 90] as const;
 const nf = new Intl.NumberFormat("en-US");
 
+// Last result per user and range. Opening the tab shows this straight away and refreshes it in the
+// background, so the screen never waits on the network round trip to the database.
+const cache = new Map<string, InsightsData>();
+const keyOf = (userId: string | null, range: number) => `${userId ?? "anon"}:${range}`;
+
+/** Warm the cache right after sign-in so the very first visit is instant too. */
+export function prefetchInsights(userId: string | null) {
+  fetchInsights(7, dayKey(new Date()))
+    .then((d) => cache.set(keyOf(userId, 7), d))
+    .catch(() => {});
+}
+
 export function Insights() {
-  const { profile, dataVersion, showToast } = useStore();
+  const { profile, dataVersion, showToast, userId } = useStore();
   const [range, setRange] = useState<(typeof RANGES)[number]>(7);
-  const [data, setData] = useState<InsightsData | null>(null);
+  const [data, setData] = useState<InsightsData | null>(() => cache.get(keyOf(userId, 7)) ?? null);
   const [failed, setFailed] = useState(false);
 
   // The numbers are computed by the database (insights_overview); refetch when snacks change.
   useEffect(() => {
     let cancelled = false;
+    // Show the last known numbers for this range immediately, then refresh them.
+    const cached = cache.get(keyOf(userId, range));
+    setData(cached ?? null);
     fetchInsights(range, dayKey(new Date()))
       .then((d) => {
+        cache.set(keyOf(userId, range), d);
         if (cancelled) return;
         setData(d);
         setFailed(false);
       })
       .catch(() => {
         if (cancelled) return;
+        // With cached numbers on screen, a failed refresh is not worth interrupting the person.
+        if (cached) return;
         setFailed(true);
         showToast("Couldn't load your insights. Try again.");
       });
     return () => {
       cancelled = true;
     };
-  }, [range, dataVersion, showToast]);
+  }, [range, dataVersion, showToast, userId]);
 
   const loading = !data && !failed;
   const goal = data?.goal || profile.savedGoal;
